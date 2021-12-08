@@ -30,7 +30,7 @@ This project explores student performance data taken from an online education ma
 ```{r load data}
 studentperform <- read.csv("C:/Users/makay/OneDrive/Desktop/Data Science/Machine Learning/654finalproject/data/studentdata.csv",header=TRUE)
 
-str(studentperform)
+str(stuperform)
 
 #add a column for ID
 stuperform <- mutate(studentperform, id = row_number())
@@ -124,8 +124,8 @@ student_blueprint <- recipe(x = stuperform,
 
 student_blueprint
 
-prepare <- prep(crab_blueprint, 
-                training = crabs)
+prepare <- prep(student_blueprint, 
+                training = stuperform)
 
 ```
 
