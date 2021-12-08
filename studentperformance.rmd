@@ -1,0 +1,179 @@
+---
+title: "Final Project"
+author: "Makayla Whitney"
+date: "12/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(caret)
+require(recipes)
+require(finalfit)
+require(glmnet)
+library(dplyr)
+```
+#Github Link
+
+
+
+#Research Problem
+Describe the task you want to achieve. What is the outcome of interest? What are you trying to predict? Why is it important? What are the potential benefits of having a predictive model for this outcome? Discuss potential applications of such a model.
+
+Crab is a high-end food item consumed in large quantities every year. Due to its large demand, crab farms 
+
+```{r load data}
+studentperform <- read.csv("C:/Users/makay/OneDrive/Desktop/Data Science/Machine Learning/654finalproject/data/studentdata.csv",header=TRUE)
+
+```
+
+```{r clean data}
+#one-hot coding for crab sex variable
+table(crab$Sex)
+
+crab$"F" <- ifelse(crab$Sex =='F',1,0)
+crab$I <- ifelse(crab$Sex =='I',1,0)
+crab$M <- ifelse(crab$Sex =='M',1,0)
+
+head(crab[,c('Sex','F','I','M')])
+
+#check for missing variables
+missing <- ff_glimpse(crab)$Categorical[,c('n','missing_percent')]
+missing
+#no missing variables 
+
+#add a column for ID
+crabs <- mutate(crab, id = row_number())
+
+```
+
+```{r processing variables}
+
+require(psych)
+
+#OG statistics
+describe(crab$Length)
+#Center
+crab$Length2 <- crab$Length - mean(crab$Length, na.rm = TRUE)
+#Scale
+crab$Length2 <- crab$Length2/sd(crab$Length, na.rm = TRUE)
+#standardized statistics
+describe(crab$Length2)
+
+require(bestNormalize)
+
+fit <- boxcox(crab$Length, standardize = FALSE)
+fit
+
+crab$Length_norm <- predict(fit)
+describe(crab$Length_norm)
+
+```
+
+
+```{r recipe}
+str(crabs)
+
+outcome <- 'Age'
+
+id <- c('id')
+
+categorical <- c('Sex')
+
+prop <- c('Length',
+             'Diameter',
+             'Height',
+             'Weight',
+             'Shucked.Weight',
+             'Viscera.Weight',
+             'Shell.Weight')
+
+for(i in categorical){
+  crabs[,i] <- as.factor(crabs[,i])
+}
+
+for(i in prop){
+  crabs[,i] <- ifelse(crabs[,i] == 0, .0001, crabs[,i])
+  crabs[,i] <- ifelse(crabs[,i] == 1, .9999, crabs[,i])
+}
+
+crab_blueprint <- recipe(x = crabs,
+                         vars = c(outcome, id, categorical, prop),
+                         roles = c(rep('predictor', 8), 'outcome', 'id')) %>%
+  step_indicate_na(all_of(categorical), all_of(prop)) %>%
+  step_impute_mean(all_of(prop)) %>%
+  step_impute_mode(all_of(categorical)) %>%
+  step_logit(all_of(prop)) %>%
+  step_ns(all_of(prop), deg_free = 3) %>%
+  step_normalize(paste0(prop, '_ns_1'),
+                 paste0(prop, '_ns_2'),
+                 paste0(prop, '_ns_3')) %>%
+  step_dummy(all_of(categorical), one_hot = TRUE)
+
+crab_blueprint
+
+prepare <- prep(crab_blueprint, 
+                training = crabs)
+
+```
+
+#Description of the data
+Describe core features of the data, any additional features you produced from existing features and how, basic descriptive statistics about these features, and any missing data analysis you conduct. The description should be sufficiently clear that the instructor understands all the variables included in your modeling.
+```{r description}
+#display table of crab characteristics
+#list of definitions of each characteristic
+
+```
+#Description of the models
+List at least three different modeling approaches you apply to this dataset. Describe each model, why the given model was selected, which hyperparameters to be optimized and how. Also, discuss how you plan to evaluate model performance.
+
+
+#Model fit
+Provide the results of your model evaluation. Compare and contrasts results from different fits, including a discussion of model performance. Discuss your final model selection and the evidence that led you to this selection. If it is a classification problem, how did you choose a cut-off point for binary predictions? Did you consider different cut-off points?
+```{r model 1 fit}
+
+
+```
+
+```{r model 2 fit}
+
+
+```
+
+```{r model 3 fit}
+
+
+```
+
+```{r model comparison}
+
+
+```
+
+#Data visualization
+Include at least two plots (or more) to help communicate your findings. The plots may be of initial data explorations, fits of individual models, and plots displaying the performance of competing models.
+```{r plot 1}
+
+
+```
+
+```{r plot 2}
+
+
+```
+
+
+#Discussion/Conclusion
+Discuss and summarize what you learned. 
+Which variables were the most important in predicting your outcome? 
+
+Was this expected or surprising? 
+
+Were different models close in performance, or were there significant gaps in performance from different modeling approaches? 
+
+Are there practical/applied findings that could help the field of your interest based on your work? If yes, what are they?
