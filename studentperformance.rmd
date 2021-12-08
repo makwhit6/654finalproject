@@ -25,97 +25,104 @@ library(dplyr)
 #Research Problem
 Describe the task you want to achieve. What is the outcome of interest? What are you trying to predict? Why is it important? What are the potential benefits of having a predictive model for this outcome? Discuss potential applications of such a model.
 
-Crab is a high-end food item consumed in large quantities every year. Due to its large demand, crab farms 
+This project explores student performance data taken from an online education management program. Student demographics as well as grade level, attendance rates, and other educational attributes are used to predict which category (low, medium, high final grade) students will fall into.
 
 ```{r load data}
 studentperform <- read.csv("C:/Users/makay/OneDrive/Desktop/Data Science/Machine Learning/654finalproject/data/studentdata.csv",header=TRUE)
+
+str(studentperform)
+
+#add a column for ID
+stuperform <- mutate(studentperform, id = row_number())
 
 ```
 
 ```{r clean data}
 #one-hot coding for crab sex variable
-table(crab$Sex)
+#table(crab$Sex)
 
-crab$"F" <- ifelse(crab$Sex =='F',1,0)
-crab$I <- ifelse(crab$Sex =='I',1,0)
-crab$M <- ifelse(crab$Sex =='M',1,0)
+#crab$"F" <- ifelse(crab$Sex =='F',1,0)
+#crab$I <- ifelse(crab$Sex =='I',1,0)
+#crab$M <- ifelse(crab$Sex =='M',1,0)
 
-head(crab[,c('Sex','F','I','M')])
+#head(crab[,c('Sex','F','I','M')])
 
 #check for missing variables
-missing <- ff_glimpse(crab)$Categorical[,c('n','missing_percent')]
-missing
+#missing <- ff_glimpse(crab)$Categorical[,c('n','missing_percent')]
+#missing
 #no missing variables 
 
-#add a column for ID
-crabs <- mutate(crab, id = row_number())
+
 
 ```
 
 ```{r processing variables}
 
-require(psych)
+#require(psych)
 
 #OG statistics
-describe(crab$Length)
+#describe(crab$Length)
 #Center
-crab$Length2 <- crab$Length - mean(crab$Length, na.rm = TRUE)
+#crab$Length2 <- crab$Length - mean(crab$Length, na.rm = TRUE)
 #Scale
-crab$Length2 <- crab$Length2/sd(crab$Length, na.rm = TRUE)
+#crab$Length2 <- crab$Length2/sd(crab$Length, na.rm = TRUE)
 #standardized statistics
-describe(crab$Length2)
+#describe(crab$Length2)
 
-require(bestNormalize)
+#require(bestNormalize)
 
-fit <- boxcox(crab$Length, standardize = FALSE)
-fit
+#fit <- boxcox(crab$Length, standardize = FALSE)
+#fit
 
-crab$Length_norm <- predict(fit)
-describe(crab$Length_norm)
+#crab$Length_norm <- predict(fit)
+#describe(crab$Length_norm)
 
 ```
 
 
 ```{r recipe}
-str(crabs)
 
-outcome <- 'Age'
+outcome <- c('Class')
 
 id <- c('id')
 
-categorical <- c('Sex')
+categorical <- c('Gender',
+                 'Nationality',
+                 'PlaceofBirth',
+                 'StageID',
+                 'GradeID', 
+                 'SectionID',
+                 'Topic',
+                 'Semester',
+                 'Relation',
+                 'ParentAnsweringSurvey',
+                 'ParentschoolSatisfaction',
+                 'StudentAbsenceDays')
 
-prop <- c('Length',
-             'Diameter',
-             'Height',
-             'Weight',
-             'Shucked.Weight',
-             'Viscera.Weight',
-             'Shell.Weight')
+numeric <- c('raisedhands',
+              'VistITedResources',
+              'AnnouncementsView',
+              'Discussion')
 
 for(i in categorical){
-  crabs[,i] <- as.factor(crabs[,i])
+  stuperform[,i] <- as.factor(stuperform[,i])
 }
 
-for(i in prop){
-  crabs[,i] <- ifelse(crabs[,i] == 0, .0001, crabs[,i])
-  crabs[,i] <- ifelse(crabs[,i] == 1, .9999, crabs[,i])
-}
 
-crab_blueprint <- recipe(x = crabs,
-                         vars = c(outcome, id, categorical, prop),
-                         roles = c(rep('predictor', 8), 'outcome', 'id')) %>%
-  step_indicate_na(all_of(categorical), all_of(prop)) %>%
-  step_impute_mean(all_of(prop)) %>%
+student_blueprint <- recipe(x = stuperform,
+                         vars = c(outcome, id, categorical, numeric),
+                         roles = c('outcome', 'id', rep('predictor', 16))) %>%
+  step_indicate_na(all_of(categorical), all_of(numeric)) %>%
+  step_zv(all_numeric()) %>%
+  step_impute_mean(all_of(numeric)) %>%
   step_impute_mode(all_of(categorical)) %>%
-  step_logit(all_of(prop)) %>%
-  step_ns(all_of(prop), deg_free = 3) %>%
-  step_normalize(paste0(prop, '_ns_1'),
-                 paste0(prop, '_ns_2'),
-                 paste0(prop, '_ns_3')) %>%
+  step_ns(all_of(numeric), deg_free = 3) %>%
+  step_normalize(paste0(numeric, '_ns_1'),
+                 paste0(numeric, '_ns_2'),
+                 paste0(numeric, '_ns_3')) %>%
   step_dummy(all_of(categorical), one_hot = TRUE)
 
-crab_blueprint
+student_blueprint
 
 prepare <- prep(crab_blueprint, 
                 training = crabs)
