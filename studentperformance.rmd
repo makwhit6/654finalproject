@@ -100,7 +100,7 @@ categorical <- c('Gender',
                  'StudentAbsenceDays')
 
 numeric <- c('raisedhands',
-              'VistITedResources',
+              'VisITedResources',
               'AnnouncementsView',
               'Discussion')
 
@@ -126,6 +126,9 @@ student_blueprint
 
 prepare <- prep(student_blueprint, 
                 training = stuperform)
+
+baked_student <- bake(prepare, new_data = stuperform)
+
 
 ```
 
