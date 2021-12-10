@@ -15,14 +15,6 @@ library(dplyr)
 library(ggplot2)
 library(corrplot)
 ```
-#Github Link
-
-Data source: https://www.kaggle.com/aljarah/xAPI-Edu-Data
-
-#Research Problem
-Describe the task you want to achieve. What is the outcome of interest? What are you trying to predict? Why is it important? What are the potential benefits of having a predictive model for this outcome? Discuss potential applications of such a model.
-
-This project explores student performance data taken from an online education management program. Student demographics as well as grade level, attendance rates, and other educational attributes are used to predict which category (low, medium, high final grade) students will fall into.
 
 ```{r load data}
 studentperform <- read.csv("C:/Users/makay/OneDrive/Desktop/Data Science/Machine Learning/654finalproject/data/studentdata.csv",header=TRUE)
@@ -92,9 +84,6 @@ baked_student <- bake(prepare, new_data = stuperform)
 
 ```
 
-#Description of the data
-Describe core features of the data, any additional features you produced from existing features and how, basic descriptive statistics about these features, and any missing data analysis you conduct. The description should be sufficiently clear that the instructor understands all the variables included in your modeling.
-
 ```{r description}
 gender <- data.frame(Variable = c("Gender"),
                      Explanation = c("student's gender"),
@@ -160,12 +149,7 @@ var_descrip <- rbind(gender, nation, birth, edstage, grade, section, topic, seme
 var_descrip
 
 ```
-#Description of the models
-List at least three different modeling approaches you apply to this dataset. Describe each model, why the given model was selected, which hyperparameters to be optimized and how. Also, discuss how you plan to evaluate model performance.
 
-
-#Model fit
-Provide the results of your model evaluation. Compare and contrasts results from different fits, including a discussion of model performance. Discuss your final model selection and the evidence that led you to this selection. If it is a classification problem, how did you choose a cut-off point for binary predictions? Did you consider different cut-off points?
 ```{r data prep}
 #evaluate for missing variables
 missing <- ff_glimpse(stuperform)$Continuous
@@ -182,7 +166,6 @@ student_test  <- stuperform[-loc, ]
 
 ```
 
-A model using linear regression without any regularization was not chosen as it produced errors. This is not the right model fit for this data set. Instead a model with 10-fold cross-validation to predict the scores using ridge regression was chosen. 
 ```{r model 1 fit}
 
 # Randomly shuffle the data
@@ -264,7 +247,6 @@ r_rmse_te
 
 ```
 
-A model with 10-fold cross-validation to predict the scores using lasso regression
 ```{r model 2 fit}
 grid2 <- data.frame(alpha = 1, lambda = 0.3673767) 
 
@@ -295,7 +277,6 @@ l_rmse_te
 
 ```
 
-A model with 10-fold cross-validation for predicting the scores using a Random Forest model with 100 trees was used to evaluate the data set. 
 ```{r model 3 fit}
 
 set.seed(12092021)
@@ -369,31 +350,16 @@ ranmod <- data.frame(Model = c("Random Forest Model"),
 ModEvalTable <- rbind(ridgereg, lassoreg, ranmod)
 ModEvalTable
 
-#We want the lowest RMSE score
+#lowest RMSE score is from the random tree model
 ```
 
-#Data visualization
-Include at least two plots (or more) to help communicate your findings. The plots may be of initial data explorations, fits of individual models, and plots displaying the performance of competing models.
-
-During initial data exploration, a histogram was created to check whether the dependent variable (Class) followed a normal distribution pattern. There are more students observed in the middle than on either side indicating a normal distribution pattern. 
 ```{r plot 1}
 hist(stuperform$Class)
 
 ```
 
-correlation matrix to determine which variable was the most important in predicting the outcome (raised hands)
 ```{r plot 2}
 student.cor = cor(baked_student)
 correlation <- corrplot(student.cor)
 
 ```
-
-#Discussion/Conclusion
-Discuss and summarize what you learned. 
-Which variables were the most important in predicting your outcome? 
-
-Was this expected or surprising? 
-
-Were different models close in performance, or were there significant gaps in performance from different modeling approaches? 
-
-Are there practical/applied findings that could help the field of your interest based on your work? If yes, what are they?
