@@ -13,6 +13,7 @@ require(finalfit)
 require(glmnet)
 library(dplyr)
 library(ggplot2)
+library(corrplot)
 ```
 #Github Link
 
@@ -94,41 +95,69 @@ baked_student <- bake(prepare, new_data = stuperform)
 #Description of the data
 Describe core features of the data, any additional features you produced from existing features and how, basic descriptive statistics about these features, and any missing data analysis you conduct. The description should be sufficiently clear that the instructor understands all the variables included in your modeling.
 
-Gender: student's gender (Options: Male or Female)
-
-Nationality: student's nationality (Options: Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan, Venezuela, Iran, Tunis, Morocco, Syria, Palestine, Iraq, Lybia)
-
-Place of birth: student's country of birth (Options: Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan,
-Venezuela, Iran, Tunis, Morocco, Syria, Palestine, Iraq, Lybia)
-
-Educational Stages: student's current educational level (Options: Lower Level, Middle School, High School)
-
-Grade Levels: student's current grade level (Options: G-01, G-02, G-03, G-04, G-05, G-06, G-07, G-08, G-09, G-10, G-11, G-12)
-
-Section ID: student's current classroom (Options: A, B, C)
-
-Topic: course topics available (Options: English, Spanish, French, Arabic, IT, Math, Chemistry, Biology, Science, History, Quran, Geology)
-
-Semester: semester of current school year (Options: First, Second)
-
-Parent responsible for student: (Options: mom, father)
-
-Raised hands: amount of times a student raises their hand during class (Options: 1-100) \
-
-Visited resources: amount of times a student accesses course content (Options: 1-100) 
-
-Viewing announcements: amount of times a student checks new announcements (Options: 1-100)
-
-Discussion groups: amount of times a student participates in discussion groups (Options: 1-100)
-
-Parent Answering Survey: amount of surveys provided by the school answered by parents (Options: 1-100) 
-
-Parent School Satisfaction: amount of parent satisfaction (Options: 1-100)
-
-Student Absence Days: amount of days each student was absent during the school year (Options: above-7, under-7) 
-
 ```{r description}
+gender <- data.frame(Variable = c("Gender"),
+                     Explanation = c("student's gender"),
+                     Options = c("Male or Female"))
+nation <- data.frame(Variable = c("Nationality"),
+                     Explanation = c("student's nationality"),
+                     Options = c("Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan, Venezuela, Iran,    
+                                 Tunis, Morocco, Syria, Palestine, Iraq, Lybia"))
+birth <- data.frame(Variable = c("PlaceofBirth"),
+                     Explanation = c("student's country of birth"),
+                     Options = c("Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan, Venezuela, Iran,    
+                                 Tunis, Morocco, Syria, Palestine, Iraq, Lybia"))
+edstage <- data.frame(Variable = c("StageID"),
+                     Explanation = c("student's current educational level"),
+                     Options = c("Lower Level, Middle School, High School"))
+grade <- data.frame(Variable = c("GradeID"),
+                     Explanation = c("student's current grade level"),
+                     Options = c("G-01, G-02, G-03, G-04, G-05, G-06, G-07, G-08, G-09, G-10, G-11, G-12"))
+section <- data.frame(Variable = c("SectionID"),
+                     Explanation = c("student's current classroom"),
+                     Options = c("A, B, C"))
+topic <- data.frame(Variable = c("Topic"),
+                     Explanation = c("course topics available to students"),
+                     Options = c("English, Spanish, French, Arabic, IT, Math, Chemistry, Biology, Science, 
+                                 History, Quran, Geology"))
+semester <- data.frame(Variable = c("Semester"),
+                     Explanation = c("semester of current school year"),
+                     Options = c("First, Second"))
+parent <- data.frame(Variable = c("Relation"),
+                     Explanation = c("Parent responsible for student"),
+                     Options = c("Mom, father"))
+hands <- data.frame(Variable = c("raisedhands"),
+                     Explanation = c("amount of times a student raises their hand during class"),
+                     Options = c("1-100"))
+resources <- data.frame(Variable = c("VisitedResources"),
+                     Explanation = c("amount of times a student accesses course content"),
+                     Options = c("1-100"))
+announce <- data.frame(Variable = c("AnnouncementsView"),
+                     Explanation = c("amount of times a student checks new announcements"),
+                     Options = c("1-100"))
+discuss <- data.frame(Variable = c("Discussion"),
+                     Explanation = c("amount of times a student participates in discussion groups"),
+                     Options = c("1-100"))
+survey <- data.frame(Variable = c("ParentAnsweringSurvey"),
+                     Explanation = c("amount of surveys provided by the school answered by parents"),
+                     Options = c("1-100"))
+satisfy <- data.frame(Variable = c("ParentschoolSatisfaction"),
+                     Explanation = c("amount of parent satisfaction"),
+                     Options = c("1-100"))
+absent <- data.frame(Variable = c("StudentAbsenceDays"),
+                     Explanation = c("amount of days each student was absent during the school year"),
+                     Options = c("above-7, under-7"))
+class <- data.frame(Variable = c("Class"),
+                     Explanation = c("students classified into numerical intervals according to their total
+                                     grade"),
+                     Options = c("Low-Level(0): 0 to 69, Middle-Level(5): 70 to 89, High-Level(10): 
+                                 90-100."))
+id <- data.frame(Variable = c("ID"),
+                     Explanation = c("numeric identification for individual students"),
+                     Options = c("1-480"))
 
+var_descrip <- rbind(gender, nation, birth, edstage, grade, section, topic, semester, parent, hands, resources, announce, discuss, survey, satisfy, absent, class, id)
+var_descrip
 
 ```
 #Description of the models
@@ -268,6 +297,9 @@ l_rmse_te
 
 A model with 10-fold cross-validation for predicting the scores using a Random Forest model with 100 trees was used to evaluate the data set. 
 ```{r model 3 fit}
+
+set.seed(12092021)
+
 # Cross validation settings 
 student_train = student_train[sample(nrow(student_train)),]
 
@@ -288,7 +320,7 @@ student_rforest <- caret::train(student_blueprint,
                         data      = student_train,
                         method    = 'ranger',
                         trControl = cv,
-                        tuneGrid  = grid,
+                        tuneGrid  = rgrid,
                         num.trees = 100,
                         max.depth = 10)
  
@@ -300,20 +332,20 @@ rpredict_te <- predict(student_rforest, student_test)
 # RMSE for random forest model
 ran_rmse <- sqrt(mean((student_test$Class - rpredict_te)^2))
 ran_rmse
-#2.052451
+#2.061287
 
 #calculate MAE for random tree model
-test_predict <- predict(student_baggedtrees, student_test)
+test_predict <- predict(student_rforest, student_test)
 
 #MAE
 ran_mae <- mean(abs(student_test$Class - test_predict))
 ran_mae
-#1.662914
+#1.645688
 
 #calculate rsqd for bagged tree model
 ran_rsqd <- cor(student_test$Class, test_predict)^2
 ran_rsqd
-#0.6722638
+#0.668946
 
 ```
 
@@ -342,16 +374,19 @@ ModEvalTable
 
 #Data visualization
 Include at least two plots (or more) to help communicate your findings. The plots may be of initial data explorations, fits of individual models, and plots displaying the performance of competing models.
+
+During initial data exploration, a histogram was created to check whether the dependent variable (Class) followed a normal distribution pattern. There are more students observed in the middle than on either side indicating a normal distribution pattern. 
 ```{r plot 1}
-
+hist(stuperform$Class)
 
 ```
 
+correlation matrix to determine which variable was the most important in predicting the outcome (raised hands)
 ```{r plot 2}
-
+student.cor = cor(baked_student)
+correlation <- corrplot(student.cor)
 
 ```
-
 
 #Discussion/Conclusion
 Discuss and summarize what you learned. 
