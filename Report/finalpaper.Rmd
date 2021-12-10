@@ -1,0 +1,399 @@
+---
+title: "Student Grade Predictions for Online Learning"
+author: "Makayla Whitney"
+date: "12/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(caret)
+require(recipes)
+require(finalfit)
+require(glmnet)
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+```
+#Github Link
+
+Data source: https://www.kaggle.com/aljarah/xAPI-Edu-Data
+
+#Research Problem
+Describe the task you want to achieve. What is the outcome of interest? What are you trying to predict? Why is it important? What are the potential benefits of having a predictive model for this outcome? Discuss potential applications of such a model.
+
+This project explores student performance data taken from an online education management program. Student demographics as well as grade level, attendance rates, and other educational attributes are used to predict which category (low, medium, high final grade) students will fall into.
+
+```{r load data}
+studentperform <- read.csv("C:/Users/makay/OneDrive/Desktop/Data Science/Machine Learning/654finalproject/data/studentdata.csv",header=TRUE)
+
+#add a column for ID
+stuperform <- mutate(studentperform, id = row_number())
+
+#modify Class column to represent numeric values rather than characters
+stuperform[stuperform == "L"] <- 0
+stuperform[stuperform == "M"] <- 5
+stuperform[stuperform == "H"] <- 10
+
+stuperform$Class <- as.numeric(stuperform$Class)
+
+str(stuperform)
+
+```
+
+```{r recipe}
+
+outcome <- c('Class')
+
+id <- c('id')
+
+categorical <- c('Gender',
+                 'Nationality',
+                 'PlaceofBirth',
+                 'StageID',
+                 'GradeID', 
+                 'SectionID',
+                 'Topic',
+                 'Semester',
+                 'Relation',
+                 'ParentAnsweringSurvey',
+                 'ParentschoolSatisfaction',
+                 'StudentAbsenceDays')
+
+numeric <- c('raisedhands',
+              'VisITedResources',
+              'AnnouncementsView',
+              'Discussion')
+
+for(i in categorical){
+  stuperform[,i] <- as.factor(stuperform[,i])
+}
+
+
+student_blueprint <- recipe(x = stuperform,
+                         vars = c(outcome, id, categorical, numeric),
+                         roles = c('outcome', 'id', rep('predictor', 16))) %>%
+  step_indicate_na(all_of(categorical), all_of(numeric)) %>%
+  step_zv(all_numeric()) %>%
+  step_impute_mean(all_of(numeric)) %>%
+  step_impute_mode(all_of(categorical)) %>%
+  step_ns(all_of(numeric), deg_free = 3) %>%
+  step_normalize(paste0(numeric, '_ns_1'),
+                 paste0(numeric, '_ns_2'),
+                 paste0(numeric, '_ns_3')) %>%
+  step_dummy(all_of(categorical), one_hot = TRUE)
+
+student_blueprint
+
+prepare <- prep(student_blueprint, 
+                training = stuperform)
+
+baked_student <- bake(prepare, new_data = stuperform)
+
+```
+
+#Description of the data
+Describe core features of the data, any additional features you produced from existing features and how, basic descriptive statistics about these features, and any missing data analysis you conduct. The description should be sufficiently clear that the instructor understands all the variables included in your modeling.
+
+```{r description}
+gender <- data.frame(Variable = c("Gender"),
+                     Explanation = c("student's gender"),
+                     Options = c("Male or Female"))
+nation <- data.frame(Variable = c("Nationality"),
+                     Explanation = c("student's nationality"),
+                     Options = c("Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan, Venezuela, Iran,    
+                                 Tunis, Morocco, Syria, Palestine, Iraq, Lybia"))
+birth <- data.frame(Variable = c("PlaceofBirth"),
+                     Explanation = c("student's country of birth"),
+                     Options = c("Kuwait, Lebanon, Egypt, Saudi Arabia, USA, Jordan, Venezuela, Iran,    
+                                 Tunis, Morocco, Syria, Palestine, Iraq, Lybia"))
+edstage <- data.frame(Variable = c("StageID"),
+                     Explanation = c("student's current educational level"),
+                     Options = c("Lower Level, Middle School, High School"))
+grade <- data.frame(Variable = c("GradeID"),
+                     Explanation = c("student's current grade level"),
+                     Options = c("G-01, G-02, G-03, G-04, G-05, G-06, G-07, G-08, G-09, G-10, G-11, G-12"))
+section <- data.frame(Variable = c("SectionID"),
+                     Explanation = c("student's current classroom"),
+                     Options = c("A, B, C"))
+topic <- data.frame(Variable = c("Topic"),
+                     Explanation = c("course topics available to students"),
+                     Options = c("English, Spanish, French, Arabic, IT, Math, Chemistry, Biology, Science, 
+                                 History, Quran, Geology"))
+semester <- data.frame(Variable = c("Semester"),
+                     Explanation = c("semester of current school year"),
+                     Options = c("First, Second"))
+parent <- data.frame(Variable = c("Relation"),
+                     Explanation = c("Parent responsible for student"),
+                     Options = c("Mom, father"))
+hands <- data.frame(Variable = c("raisedhands"),
+                     Explanation = c("amount of times a student raises their hand during class"),
+                     Options = c("1-100"))
+resources <- data.frame(Variable = c("VisitedResources"),
+                     Explanation = c("amount of times a student accesses course content"),
+                     Options = c("1-100"))
+announce <- data.frame(Variable = c("AnnouncementsView"),
+                     Explanation = c("amount of times a student checks new announcements"),
+                     Options = c("1-100"))
+discuss <- data.frame(Variable = c("Discussion"),
+                     Explanation = c("amount of times a student participates in discussion groups"),
+                     Options = c("1-100"))
+survey <- data.frame(Variable = c("ParentAnsweringSurvey"),
+                     Explanation = c("amount of surveys provided by the school answered by parents"),
+                     Options = c("1-100"))
+satisfy <- data.frame(Variable = c("ParentschoolSatisfaction"),
+                     Explanation = c("amount of parent satisfaction"),
+                     Options = c("1-100"))
+absent <- data.frame(Variable = c("StudentAbsenceDays"),
+                     Explanation = c("amount of days each student was absent during the school year"),
+                     Options = c("above-7, under-7"))
+class <- data.frame(Variable = c("Class"),
+                     Explanation = c("students classified into numerical intervals according to their total
+                                     grade"),
+                     Options = c("Low-Level(0): 0 to 69, Middle-Level(5): 70 to 89, High-Level(10): 
+                                 90-100."))
+id <- data.frame(Variable = c("ID"),
+                     Explanation = c("numeric identification for individual students"),
+                     Options = c("1-480"))
+
+var_descrip <- rbind(gender, nation, birth, edstage, grade, section, topic, semester, parent, hands, resources, announce, discuss, survey, satisfy, absent, class, id)
+var_descrip
+
+```
+#Description of the models
+List at least three different modeling approaches you apply to this dataset. Describe each model, why the given model was selected, which hyperparameters to be optimized and how. Also, discuss how you plan to evaluate model performance.
+
+
+#Model fit
+Provide the results of your model evaluation. Compare and contrasts results from different fits, including a discussion of model performance. Discuss your final model selection and the evidence that led you to this selection. If it is a classification problem, how did you choose a cut-off point for binary predictions? Did you consider different cut-off points?
+```{r data prep}
+#evaluate for missing variables
+missing <- ff_glimpse(stuperform)$Continuous
+
+head(missing)
+#no missing variables present to remove
+
+#set the seed. create test and traing dataset where training data is 80% and test is 20%
+set.seed(12092021)
+  
+loc      <- sample(1:nrow(stuperform), round(nrow(stuperform) * 0.8))
+student_train  <- stuperform[loc, ]
+student_test  <- stuperform[-loc, ]
+
+```
+
+A model using linear regression without any regularization was not chosen as it produced errors. This is not the right model fit for this data set. Instead a model with 10-fold cross-validation to predict the scores using ridge regression was chosen. 
+```{r model 1 fit}
+
+# Randomly shuffle the data
+
+student_train = student_train[sample(nrow(student_train)),]
+
+# Create 10 folds with equal size
+
+folds = cut(seq(1,nrow(student_train)),breaks=10,labels=FALSE)
+
+# Create the list for each fold 
+
+my.indices <- vector('list',10)
+for(i in 1:10){
+  my.indices[[i]] <- which(folds!=i)
+}
+
+cv <- trainControl(method = "cv",
+                   index  = my.indices)
+
+#determine the optimal lambda
+#define response variable
+y <- stuperform$Class
+
+#define matrix of predictor variables
+x <- data.matrix(stuperform[, c('Gender',
+                 'Nationality',
+                 'PlaceofBirth',
+                 'StageID',
+                 'GradeID', 
+                 'SectionID',
+                 'Topic',
+                 'Semester',
+                 'Relation',
+                 'ParentAnsweringSurvey',
+                 'ParentschoolSatisfaction',
+                 'StudentAbsenceDays',
+                 'raisedhands',
+              'VisITedResources',
+              'AnnouncementsView',
+              'Discussion')])
+#perform k-fold cross-validation to find optimal lambda value
+cv_model <- cv.glmnet(x, y, alpha = 0)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+#0.3673767
+
+#produce plot of test MSE by lambda value
+plot(cv_model)
+
+#create a grid
+grid <- data.frame(alpha = 0, lambda = 0.3673767) 
+grid
+
+
+# Train the model
+
+ridge <- caret::train(student_blueprint, 
+                      data      = student_train, 
+                      method    = "glmnet", 
+                      trControl = cv,
+                      tuneGrid  = grid)
+
+ridge$bestTune
+
+predict_te_ridge <- predict(ridge, student_test)
+
+r_rsq_te <- cor(student_test$Class,predict_te_ridge)^2
+r_rsq_te
+# 0.6714214
+r_mae_te <- mean(abs(student_test$Class - predict_te_ridge))
+r_mae_te
+# 1.707019
+r_rmse_te <- sqrt(mean((student_test$Class - predict_te_ridge)^2))
+r_rmse_te
+# 2.093097
+
+```
+
+A model with 10-fold cross-validation to predict the scores using lasso regression
+```{r model 2 fit}
+grid2 <- data.frame(alpha = 1, lambda = 0.3673767) 
+
+grid2
+
+# Train the model
+
+lasso <- caret::train(student_blueprint, 
+                       data      = student_train, 
+                       method    = "glmnet", 
+                       trControl = cv,
+                       tuneGrid  = grid2)
+
+lasso$bestTune
+
+#getting errors in this section
+predict_te_lasso<- predict(lasso, student_test)
+
+l_rsq_te <- cor(student_test$Class,predict_te_lasso)^2
+l_rsq_te
+#0.6529293
+l_mae_te <- mean(abs(student_test$Class - predict_te_lasso))
+l_mae_te
+# 1.886536
+l_rmse_te <- sqrt(mean((student_test$Class - predict_te_lasso)^2))
+l_rmse_te
+# 2.135996
+
+```
+
+A model with 10-fold cross-validation for predicting the scores using a Random Forest model with 100 trees was used to evaluate the data set. 
+```{r model 3 fit}
+
+set.seed(12092021)
+
+# Cross validation settings 
+student_train = student_train[sample(nrow(student_train)),]
+
+folds = cut(seq(1,nrow(student_train)),breaks=10,labels=FALSE)
+     
+my.indices <- vector('list',10)
+    for(i in 1:10){
+      my.indices[[i]] <- which(folds!=i)
+    }
+    
+cv <- trainControl(method = "cv",
+                       index  = my.indices)
+
+rgrid <- expand.grid(mtry = 16,splitrule='variance',min.node.size=2)
+#rgrid
+
+student_rforest <- caret::train(student_blueprint,
+                        data      = student_train,
+                        method    = 'ranger',
+                        trControl = cv,
+                        tuneGrid  = rgrid,
+                        num.trees = 100,
+                        max.depth = 10)
+ 
+student_rforest$times
+
+#checking random forest model on the test dataset
+rpredict_te <- predict(student_rforest, student_test)
+
+# RMSE for random forest model
+ran_rmse <- sqrt(mean((student_test$Class - rpredict_te)^2))
+ran_rmse
+#2.061287
+
+#calculate MAE for random tree model
+test_predict <- predict(student_rforest, student_test)
+
+#MAE
+ran_mae <- mean(abs(student_test$Class - test_predict))
+ran_mae
+#1.645688
+
+#calculate rsqd for bagged tree model
+ran_rsqd <- cor(student_test$Class, test_predict)^2
+ran_rsqd
+#0.668946
+
+```
+
+```{r model comparison}
+ridgereg <- data.frame(Model = c("Linear Regression with Ridge Penalty"),
+                    RMSE = c(r_rmse_te),
+                     MAE = c(r_mae_te),
+                     Rsq = c(r_rsq_te))
+
+lassoreg <- data.frame(Model = c("Linear Regression with Lasso Penalty"),
+                    RMSE = c(l_rmse_te),
+                     MAE = c(l_mae_te),
+                     Rsq = c(l_rsq_te))
+
+ranmod <- data.frame(Model = c("Random Forest Model"),
+                    RMSE = c(ran_rmse),
+                     MAE = c(ran_mae),
+                     Rsq = c(ran_rsqd))
+
+#Final Table
+ModEvalTable <- rbind(ridgereg, lassoreg, ranmod)
+ModEvalTable
+
+#We want the lowest RMSE score
+```
+
+#Data visualization
+Include at least two plots (or more) to help communicate your findings. The plots may be of initial data explorations, fits of individual models, and plots displaying the performance of competing models.
+
+During initial data exploration, a histogram was created to check whether the dependent variable (Class) followed a normal distribution pattern. There are more students observed in the middle than on either side indicating a normal distribution pattern. 
+```{r plot 1}
+hist(stuperform$Class)
+
+```
+
+correlation matrix to determine which variable was the most important in predicting the outcome (raised hands)
+```{r plot 2}
+student.cor = cor(baked_student)
+correlation <- corrplot(student.cor)
+
+```
+
+#Discussion/Conclusion
+Discuss and summarize what you learned. 
+Which variables were the most important in predicting your outcome? 
+
+Was this expected or surprising? 
+
+Were different models close in performance, or were there significant gaps in performance from different modeling approaches? 
+
+Are there practical/applied findings that could help the field of your interest based on your work? If yes, what are they?
